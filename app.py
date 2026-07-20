@@ -23,7 +23,6 @@ if uploaded_file is not None:
     
     # Проверяем наличие пустой строки перед заголовками
     if len(df.columns) == 1 and isinstance(df.iloc[0, 0], str):  
-        # Если первая строка содержит строку, а не число, считаем это шапкой
         df.columns = df.iloc[0]
         df = df.drop(index=0).reset_index(drop=True)
 
@@ -48,23 +47,6 @@ if uploaded_file is not None:
     # Очистка данных
     df[stat_col] = df[stat_col].astype(str).str.strip()
     df.dropna(subset=[article_col, stat_col, sum_col], inplace=True)
-
-    #### ОТЛАДКА: проверим, какие статьи попали в итоговый набор ####
-    pivot_table = df.pivot_table(
-        index=article_col,
-        columns=stat_col,
-        values=sum_col,
-        aggfunc='sum',
-        fill_value=0
-    )
-
-    result_df = pivot_table.reset_index()
-
-    # 📋 Уникальные статьи в итоговом DataFrame:
-    # Этот блок покажет пользователю список реальных статей после очистки данных.
-    st.subheader("Найденные финансовые метрики:")
-    selected_articles = [col for col in result_df.columns if col != article_col]
-    st.dataframe(selected_articles, use_container_width=True)
 
     #### ❗ ОБЩИЙ БЛОК ПОСТРОЕНИЯ ABC-АНАЛИЗА ####
 
@@ -100,7 +82,7 @@ if uploaded_file is not None:
 
     # Список необходимых статей для расчёта расходов
     required_articles = [
-        'Логистика СДЭК',                     # Обратите внимание на букву К!
+        'Логистика СДЭК',
         'Логистика общая, руб',
         'Плановая комиссия, руб',
         'Себестоимость итого, руб',
@@ -157,7 +139,6 @@ if uploaded_file is not None:
     #### ✍️ СОЗДАНИЕ ОСНОВНОЙ ИТОГОВОЙ МАТРИЦЫ ####
 
     # Устанавливаем фиксированный порядок колонок
-    # Теперь все расчёты идут от единой базы "Выручка без СПП".
     columns_order = [
         article_col,
         'Выручка без СПП итого, руб',           # Ваша реальная база продаж
@@ -197,6 +178,15 @@ if uploaded_file is not None:
             
             # Оставляем только нужные колонки
             final_columns = [article_col, column_name, 'ABC_Category']
+
+            # ⚙️ НОВАЯ ФУНКЦИЯ: показываем первые и последние позиции
+            top_bottom = pd.concat([
+                abc_df.head(5),          # Первые 5 (категория A)
+                abc_df.tail(5)[::-1]     # Последние 5 (категория C), перевёрнутый список
+            ])
+
+            st.subheader(f"🔹 ABC-анализ по {name}")
+            st.dataframe(top_bottom, use_container_width=True)
 
             # Сохранение результата в буфер
             buffer_abc = BytesIO()
