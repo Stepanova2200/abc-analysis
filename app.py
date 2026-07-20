@@ -97,6 +97,11 @@ if st.button("⚡ Сформировать матрицу"):
                 
                 st.success(f"✅ Готово! Итоговых артикулов: {len(result_df)}")
                 st.dataframe(result_df.head())
+                # ... код выше не меняется ...
+
+                # Переименовываем колонку после pivot_table
+                if 'Кол-во итого, шт.' in result_df.columns:
+                    result_df.rename(columns={'Кол-во итого, шт.': 'Продажа итого, шт'}, inplace=True)
                 
                 # Передаем байты из буфера напрямую в кнопку
                 st.download_button(
