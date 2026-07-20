@@ -1,6 +1,10 @@
 import pandas as pd
 import streamlit as st
 from io import BytesIO
+import os
+# Получаем путь до текущего скрипта
+current_dir = os.path.dirname(os.path.abspath(__file__))
+image_path = os.path.join(current_dir, "logo.png")
 
 # --- Настройка внешнего вида ---
 st.set_page_config(
