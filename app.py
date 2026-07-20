@@ -3,7 +3,6 @@ import streamlit as st
 from io import BytesIO
 import numpy as np
 
-# --- Настройка внешнего вида ---
 st.set_page_config(
     page_title="Анализ ассортимента",
     layout="centered"
@@ -32,7 +31,7 @@ if uploaded_file is not None:
     stat_col = cols_lower.get('статья')
 
     possible_sums = ["сумма", "итог"] 
-    sum_col = next(  # ИСПРАВЛЕННЫЙ ПОИСК СУММЫ!
+    sum_col = next(  # Исправленный поиск суммы!
         (original for key, original in cols_lower.items() 
          if any(x in key for x in possible_sums) or ("unnamed" in key)),
         None
@@ -48,7 +47,7 @@ if uploaded_file is not None:
     df[stat_col] = df[stat_col].astype(str).str.strip()
     df.dropna(subset=[article_col, stat_col, sum_col], inplace=True)
 
-    #### ❗ ОБЩИЙ БЛОК ПОСТРОЕНИЯ ABC-АНАЛИЗА ####
+    #### ОБЩИЙ БЛОК ПОСТРОЕНИЯ ABC-АНАЛИЗА ####
 
     def abc_analysis(dataframe, criterion_column):
         """
@@ -56,19 +55,13 @@ if uploaded_file is not None:
         """
         abc_df = dataframe[[article_col, criterion_column]].copy()
         
-        # Сортируем товары от самого большого значения к самому маленькому
         abc_df.sort_values(by=criterion_column, ascending=False, inplace=True)
 
-        # Считаем кумулятивную сумму (нарастающий итог)
         abc_df['Cumulative_Sum'] = abc_df[criterion_column].cumsum()
-
-        # Находим общую сумму всех значений нашего критерия
         total_sum = abc_df[criterion_column].sum()
 
-        # Рассчитываем долю каждого товара в общем результате (%)
         abc_df['Percentage_of_Total'] = (abc_df['Cumulative_Sum'] / total_sum) * 100
 
-        # Определяем категории ABC
         abc_df['ABC_Category'] = pd.cut(
             abc_df['Percentage_of_Total'], 
             bins=[0, 80, 95, float('inf')],
@@ -78,51 +71,39 @@ if uploaded_file is not None:
 
         return abc_df
 
-    #### 🎯 РАСЧЁТ МЕТРИК ДО ABC-АНАЛИЗА ####
+    #### РАСЧЁТ МЕТРИК ДО ABC-АНАЛИЗА ####
 
-    # Список необходимых статей для расчёта расходов
+    # ⚙️ ИСПРАВЛЕНИЕ: проверяем наличие ТОЛЬКО нужных исходных колонок
+    # Список обязательных статей ДЛЯ ПОИСКА В СВЕДЕННОЙ ТАБЛИЦЕ
     required_articles = [
-        'Логистика СДЭК',
-        'Логистика общая, руб',
-        'Плановая комиссия, руб',
-        'Себестоимость итого, руб',
-        # ВАША РЕАЛЬНАЯ СТАТЬЯ ПРОДАЖ ИЗ ОТЛАДОЧНОГО ВЫВОДА
-        'Выручка без СПП итого, руб',       # <--- Используем её для базы расчётов
+        *['Логистика СДЭК', 'Логистика общая, руб', 'Плановая комиссия, руб', 'Себестоимость итого, руб'],
+        'Выручка без СПП итого, руб'  # Базовая статья для прибыли/маржи
     ]
 
-    # Проверяем наличие этих статей в результирующем DataFrame
     missing_articles = [art for art in required_articles if art not in result_df.columns]
     if len(missing_articles) > 0:
         st.error(f"❌ Следующие необходимые статьи отсутствуют в файле:\n- {'\n- '.join(missing_articles)}")
         st.stop()
 
     # Создаём временную таблицу только с нужными колонками и заменяем NaN на ноль.
-    df_for_calculation = result_df[required_articles].fillna(0)
+    df_for_calculation = result_df[required_articles[:-1]].fillna(0)  # Все расходы
 
     # Добавляем новый столбец - Итого переменные расходы
     result_df['Итого переменные расходы,руб'] = (
-        df_for_calculation['Логистика СДЭК'] +
-        df_for_calculation['Логистика общая, руб'] +
-        df_for_calculation['Плановая комиссия, руб'] +
-        df_for_calculation['Себестоимость итого, руб']
+        df_for_calculation.sum(axis=1)
     )
 
-    #### 📝 ПУНКТ 3: МАРЖИНАЛЬНАЯ ПРИБЫЛЬ И МАРЖА (%) ###
-
-    # Для расчёта используем единую базу - Вашу реальную статью "Выручка без СПП".
-    # Все расчёты должны быть в одной валюте (в рублях).
+    #### ПУНКТ 3: МАРЖИНАЛЬНАЯ ПРИБЫЛЬ И МАРЖА (%) ###
 
     # Расчёт маржинальной прибыли
     # Прибыли = Выручка (без СПП) - Переменные расходы
     result_df['Маржинальная прибыль, руб'] = (
-        df_for_calculation['Выручка без СПП итого, руб'] -
+        result_df['Выручка без СПП итого, руб'] -
         result_df['Итого переменные расходы,руб']
     )
 
     # Расчёт маржи %
     # Маржа = Прибыль / Выручку (ту же самую!) * 100%
-    # При делении на ноль или очень маленькое число может возникнуть бесконечность (+inf/-inf),
-    # которую мы заменим на NaN, а затем на 0.
     df_for_margin = result_df[[
         'Маржинальная прибыль, руб',
         'Выручка без СПП итого, руб'         # Та же база, что и выше
@@ -136,9 +117,8 @@ if uploaded_file is not None:
     # Приводим проценты к удобному виду (умножаем на 100 и округляем)
     result_df['Маржа, %'] = np.round(result_df['Маржа, %'].astype(float) * 100, 2)
 
-    #### ✍️ СОЗДАНИЕ ОСНОВНОЙ ИТОГОВОЙ МАТРИЦЫ ####
+    #### СОЗДАНИЕ ОСНОВНОЙ ИТОГОВОЙ МАТРИЦЫ ####
 
-    # Устанавливаем фиксированный порядок колонок
     columns_order = [
         article_col,
         'Выручка без СПП итого, руб',           # Ваша реальная база продаж
@@ -163,9 +143,8 @@ if uploaded_file is not None:
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
-    #### ❗ ОСНОВНОЙ ЦИКЛ АНАЛИЗА ####
+    #### ОСНОВНОЙ ЦИКЛ АНАЛИЗА ####
 
-    # Запускаем анализ для каждого критерия
     criteria = [
         ("Выручка", "Выручка без СПП итого, руб"),
         ("Прибыль", "Маржинальная прибыль, руб"),
@@ -176,13 +155,12 @@ if uploaded_file is not None:
         if column_name in result_df.columns:
             abc_df = abc_analysis(result_df, column_name)
             
-            # Оставляем только нужные колонки
             final_columns = [article_col, column_name, 'ABC_Category']
 
-            # ⚙️ НОВАЯ ФУНКЦИЯ: показываем первые и последние позиции
+            # Показываем первые 5 (категория A) и последние 5 (категория C)
             top_bottom = pd.concat([
-                abc_df.head(5),          # Первые 5 (категория A)
-                abc_df.tail(5)[::-1]     # Последние 5 (категория C), перевёрнутый список
+                abc_df.head(5),
+                abc_df.tail(5)[::-1]     # Перевёрнутый список последних
             ])
 
             st.subheader(f"🔹 ABC-анализ по {name}")
