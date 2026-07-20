@@ -155,7 +155,7 @@ if uploaded_file is not None:
                 abc_df.tail(5)[::-1]     # Перевёрнутый список последних
             ])
 
-            st.subheader(f"🔹 ABC-анализ по {name}")
+            st.subheader(f"🔹 ABC-анализ по "{name}"")
             st.dataframe(top_bottom, use_container_width=True)
 
             buffer_abc = BytesIO()
