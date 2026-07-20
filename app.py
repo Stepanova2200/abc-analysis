@@ -27,9 +27,10 @@ if uploaded_file is not None:
         df.columns = df.iloc[0]
         df = df.drop(index=0).reset_index(drop=True)
 
+    #### ⚠️ ПОИСК КОЛОНОК С АВТОПОМОЩЬЮ ####
+    # Создаём словарь для нечувствительного к регистру поиска
     cols_lower = {str(col).lower(): col for col in df.columns}
-
-    #### ⚠️ НАДЕЖНЫЙ ПОИСК КОЛОНОК ###
+    
     article_col = next((o for k, o in cols_lower.items() if ('артикул' in k or 'код товара' in k)), None)
     stat_col = cols_lower.get('статья')
 
@@ -40,21 +41,30 @@ if uploaded_file is not None:
         None
     )
 
+    #### ⚠️ ИНТЕРАКТИВНЫЕ ВИДЖЕТЫ С БЕЗОПАСНОЙ ФОРМАТИРОВКОЙ ####
+    # Теперь мы даём пользователю список всех доступных вариантов.
+    # Добавили .get(x), чтобы избежать KeyError при первом запуске страницы.
     article_col = st.selectbox(
         "🧩 Колонка с артикулами:",
         options=list(cols_lower.values()),
+        index=None,
+        format_func=lambda x: f"{x} ({cols_lower.get(x).title() if x else ''})",
         placeholder="Выберите..."
     )
 
     stat_col = st.selectbox(
         "🧩 Колонка со списком статей:",
         options=list(cols_lower.values()),
+        index=None,
+        format_func=lambda x: f"{x} ({cols_lower.get(x).title() if x else ''})",
         placeholder="Выберите..."
     )
 
     sum_col = st.selectbox(
         "🧩 Колонка с числовыми значениями:",
         options=list(cols_lower.values()),
+        index=None,
+        format_func=lambda x: f"{x} ({cols_lower.get(x).title() if x else ''})",
         placeholder="Выберите..."
     )
 
@@ -180,8 +190,7 @@ if uploaded_file is not None:
 
             def abc_analysis(dataframe, criterion_column):
                 """
-                Строит ABC-анализ по заданному критерию и сохраняет результат в файл.
-                Возвращает DataFrame с категориями.
+                Строит ABC-анализ по заданному критерию и возвращает DataFrame с категориями.
                 """
                 abc_df = dataframe[[article_col, criterion_column]].copy()
                 
