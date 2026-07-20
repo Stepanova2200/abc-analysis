@@ -59,14 +59,14 @@ else:
 # --- Кнопка запуска расчета ---
 if st.button("⚡ Сформировать матрицу"):
     
-    if st.session_point.state.df_raw is None:
+    # ❗️ ИСПРАВЛЕНО!
+    if st.session_state.df_raw is None:
         st.warning("Сначала загрузите файл выше.")
     else:
         with st.spinner("Выполняется поворот таблицы..."):
             try:
                 df = st.session_state.df_raw.copy()
                 
-                # Определяем колонки заново внутри блока кнопки (защита от сброса сессии)
                 cols_lower = {str(col).lower().strip(): col for col in df.columns}
                 article_col = next((o for k, o in cols_lower.items() if 'артикул' in k and ('поставщик' in k or 'код' in k)), None)
                 stat_col = next((o for k, o in cols_lower.items() if 'стать' in k), None)
@@ -92,7 +92,7 @@ if st.button("⚡ Сформировать матрицу"):
                 # ✅ Пункт 1: Переименование колонки
                 # Мы работаем с MultiIndex
                 if 'Кол-во итого, шт.' in pivot_table.columns.get_level_values(0):
-                    new_columns = [col if col != "Кол-во итого, шт." else ("Продажа итого, шт",)
+                    new_columns = [col if col != "Кол-во итого, шт." else ("Продажа итого, шт",) 
                                    for col in pivot_table.columns]
                     
                     # Устанавливаем новый индекс
