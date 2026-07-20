@@ -3,6 +3,7 @@ import streamlit as st
 from io import BytesIO
 import numpy as np
 
+# Настройка внешнего вида приложения
 st.set_page_config(
     page_title="Анализ ассортимента",
     layout="centered"
@@ -11,8 +12,7 @@ st.title("📊 Анализ ассортимента")
 st.write("Загрузите файл Excel с данными о продажах.")
 
 uploaded_file = st.file_uploader(
-    "Выберите Excel-файл", 
-    type=["xlsx"],
+    "Выберите Excel-файл", type=["xlsx"],
     help="Ожидаемый формат: АВС_анализ.xlsx с листом 'Данные'"
 )
 
@@ -47,37 +47,23 @@ if uploaded_file is not None:
     df[stat_col] = df[stat_col].astype(str).str.strip()
     df.dropna(subset=[article_col, stat_col, sum_col], inplace=True)
 
-    #### ОБЩИЙ БЛОК ПОСТРОЕНИЯ ABC-АНАЛИЗА ####
+    #### ПОСТРОЕНИЕ СВЁДНОЙ ТАБЛИЦЫ ####
+    pivot_table = df.pivot_table(
+        index=article_col,
+        columns=stat_col,
+        values=sum_col,
+        aggfunc='sum',
+        fill_value=0
+    )
 
-    def abc_analysis(dataframe, criterion_column):
-        """
-        Строит ABC-анализ по заданному критерию и возвращает DataFrame с категориями.
-        """
-        abc_df = dataframe[[article_col, criterion_column]].copy()
-        
-        abc_df.sort_values(by=criterion_column, ascending=False, inplace=True)
+    result_df = pivot_table.reset_index()
 
-        abc_df['Cumulative_Sum'] = abc_df[criterion_column].cumsum()
-        total_sum = abc_df[criterion_column].sum()
-
-        abc_df['Percentage_of_Total'] = (abc_df['Cumulative_Sum'] / total_sum) * 100
-
-        abc_df['ABC_Category'] = pd.cut(
-            abc_df['Percentage_of_Total'], 
-            bins=[0, 80, 95, float('inf')],
-            labels=['A', 'B', 'C'],
-            right=False
-        )
-
-        return abc_df
-
-    #### РАСЧЁТ МЕТРИК ДО ABC-АНАЛИЗА ####
-
-    # ⚙️ ИСПРАВЛЕНИЕ: проверяем наличие ТОЛЬКО нужных исходных колонок
-    # Список обязательных статей ДЛЯ ПОИСКА В СВЕДЕННОЙ ТАБЛИЦЕ
+    #### ❗ ЗДЕСЬ ДОЛЖНА БЫТЬ ПРОВЕРКА СТАТЕЙ ###
+    # Список обязательных статей для расчёта метрик.
+    # Мы проверяем их наличие только ПОСЛЕ ТОГО, КАК ПОСТРОИЛИ СВЕДНУЮ ТАБЛИЦУ.
     required_articles = [
         *['Логистика СДЭК', 'Логистика общая, руб', 'Плановая комиссия, руб', 'Себестоимость итого, руб'],
-        'Выручка без СПП итого, руб'  # Базовая статья для прибыли/маржи
+        'Выручка без СПП итого, руб'
     ]
 
     missing_articles = [art for art in required_articles if art not in result_df.columns]
@@ -85,43 +71,33 @@ if uploaded_file is not None:
         st.error(f"❌ Следующие необходимые статьи отсутствуют в файле:\n- {'\n- '.join(missing_articles)}")
         st.stop()
 
-    # Создаём временную таблицу только с нужными колонками и заменяем NaN на ноль.
+    #### РАСЧЁТ МЕТРИК ДО ABC-АНАЛИЗА ####
     df_for_calculation = result_df[required_articles[:-1]].fillna(0)  # Все расходы
-
-    # Добавляем новый столбец - Итого переменные расходы
     result_df['Итого переменные расходы,руб'] = (
         df_for_calculation.sum(axis=1)
     )
 
     #### ПУНКТ 3: МАРЖИНАЛЬНАЯ ПРИБЫЛЬ И МАРЖА (%) ###
-
-    # Расчёт маржинальной прибыли
-    # Прибыли = Выручка (без СПП) - Переменные расходы
     result_df['Маржинальная прибыль, руб'] = (
         result_df['Выручка без СПП итого, руб'] -
         result_df['Итого переменные расходы,руб']
     )
 
-    # Расчёт маржи %
-    # Маржа = Прибыль / Выручку (ту же самую!) * 100%
     df_for_margin = result_df[[
         'Маржинальная прибыль, руб',
-        'Выручка без СПП итого, руб'         # Та же база, что и выше
+        'Выручка без СПП итого, руб'
     ]].fillna(0)
 
     result_df['Маржа, %'] = (
         df_for_margin['Маржинальная прибыль, руб'] /
         df_for_margin['Выручка без СПП итого, руб']
     ).replace([np.inf, -np.inf], np.nan).fillna(0)
-
-    # Приводим проценты к удобному виду (умножаем на 100 и округляем)
     result_df['Маржа, %'] = np.round(result_df['Маржа, %'].astype(float) * 100, 2)
 
     #### СОЗДАНИЕ ОСНОВНОЙ ИТОГОВОЙ МАТРИЦЫ ####
-
     columns_order = [
         article_col,
-        'Выручка без СПП итого, руб',           # Ваша реальная база продаж
+        'Выручка без СПП итого, руб',
         'Итого переменные расходы,руб',
         'Маржинальная прибыль, руб',
         'Маржа, %'
@@ -129,7 +105,6 @@ if uploaded_file is not None:
 
     existing_columns = [col for col in columns_order if col in result_df.columns]
 
-    # Сохранение основной матрицы в буфер для скачивания
     buffer_main = BytesIO()
     with pd.ExcelWriter(buffer_main, engine='openpyxl') as writer:
         result_df[existing_columns].to_excel(writer, index=False, sheet_name='Матрица')
@@ -143,7 +118,25 @@ if uploaded_file is not None:
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
-    #### ОСНОВНОЙ ЦИКЛ АНАЛИЗА ####
+    #### ОБЩИЙ ЦИКЛ АНАЛИЗА ####
+
+    def abc_analysis(dataframe, criterion_column):
+        """Строит ABC-анализ по заданному критерию."""
+        abc_df = dataframe[[article_col, criterion_column]].copy()
+        
+        abc_df.sort_values(by=criterion_column, ascending=False, inplace=True)
+        abc_df['Cumulative_Sum'] = abc_df[criterion_column].cumsum()
+        total_sum = abc_df[criterion_column].sum()
+
+        abc_df['Percentage_of_Total'] = (abc_df['Cumulative_Sum'] / total_sum) * 100
+
+        abc_df['ABC_Category'] = pd.cut(
+            abc_df['Percentage_of_Total'], bins=[0, 80, 95, float('inf')],
+            labels=['A', 'B', 'C'],
+            right=False
+        )
+
+        return abc_df
 
     criteria = [
         ("Выручка", "Выручка без СПП итого, руб"),
@@ -157,7 +150,6 @@ if uploaded_file is not None:
             
             final_columns = [article_col, column_name, 'ABC_Category']
 
-            # Показываем первые 5 (категория A) и последние 5 (категория C)
             top_bottom = pd.concat([
                 abc_df.head(5),
                 abc_df.tail(5)[::-1]     # Перевёрнутый список последних
@@ -166,7 +158,6 @@ if uploaded_file is not None:
             st.subheader(f"🔹 ABC-анализ по {name}")
             st.dataframe(top_bottom, use_container_width=True)
 
-            # Сохранение результата в буфер
             buffer_abc = BytesIO()
             with pd.ExcelWriter(buffer_abc, engine='openpyxl') as writer:
                 abc_df[final_columns].to_excel(writer, index=False, sheet_name=name)
