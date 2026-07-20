@@ -40,31 +40,26 @@ if uploaded_file is not None:
         None
     )
 
-    # ❗ В ИНТЕРАКТИВНОМ РЕЖИМЕ пользователь выбирает эти колонки сам!
-    # Мы даём ему список всех доступных вариантов.
     article_col = st.selectbox(
-        "🧩 Колонка с артикулами:",
-        options=list(cols_lower.values()),
-        index=None,
-        format_func=lambda x: f"{x} ({cols_lower[x].title()})" if x else "",
-        placeholder="Выберите..."
-    )
+    "🧩 Колонка с артикулами:",
+    options=list(cols_lower.values()),
+    placeholder="Выберите..."
+)
 
-    stat_col = st.selectbox(
-        "🧩 Колонка со списком статей:",
-        options=list(cols_lower.values()),
-        index=None,
-        format_func=lambda x: f"{x} ({cols_lower[x].title()})" if x else "",
-        placeholder="Выберите..."
-    )
+
+   stat_col = st.selectbox(
+    "🧩 Колонка со списком статей:",
+    options=list(cols_lower.values()),
+    placeholder="Выберите..."
+)
+
 
     sum_col = st.selectbox(
-        "🧩 Колонка с числовыми значениями:",
-        options=list(cols_lower.values()),
-        index=None,
-        format_func=lambda x: f"{x} ({cols_lower[x].title()})" if x else "",
-        placeholder="Выберите..."
-    )
+    "🧩 Колонка с числовыми значениями:",
+    options=list(cols_lower.values()),
+    placeholder="Выберите..."
+)
+
 
     if all([article_col, stat_col, sum_col]):
         # Очистка данных
