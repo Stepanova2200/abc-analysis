@@ -4,7 +4,7 @@ from io import BytesIO
 import os
 # Пример ссылки на картинку из вашего же репозитория
 st.image(
-    "https://raw.githubusercontent.com/<ваш-аккаунт>/abc-analysis/main/logo.png",
+    "https://raw.https://github.com/Stepanova2200/abc-analysis/blob/main/logo.png",
     caption="Логотип компании", width=200
 )
 
