@@ -41,25 +41,22 @@ if uploaded_file is not None:
     )
 
     article_col = st.selectbox(
-    "🧩 Колонка с артикулами:",
-    options=list(cols_lower.values()),
-    placeholder="Выберите..."
-)
+        "🧩 Колонка с артикулами:",
+        options=list(cols_lower.values()),
+        placeholder="Выберите..."
+    )
 
-
-   stat_col = st.selectbox(
-    "🧩 Колонка со списком статей:",
-    options=list(cols_lower.values()),
-    placeholder="Выберите..."
-)
-
+    stat_col = st.selectbox(
+        "🧩 Колонка со списком статей:",
+        options=list(cols_lower.values()),
+        placeholder="Выберите..."
+    )
 
     sum_col = st.selectbox(
-    "🧩 Колонка с числовыми значениями:",
-    options=list(cols_lower.values()),
-    placeholder="Выберите..."
-)
-
+        "🧩 Колонка с числовыми значениями:",
+        options=list(cols_lower.values()),
+        placeholder="Выберите..."
+    )
 
     if all([article_col, stat_col, sum_col]):
         # Очистка данных
